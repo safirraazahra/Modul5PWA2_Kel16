@@ -4,7 +4,8 @@ import axios from 'axios'
 // Base URL & Supabase Key Configuration
 // Read from environment variables (.env)
 // ---------------------------------------------------------------------------
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'https://modlima.fuadfakhruz.id'
 const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
@@ -13,9 +14,9 @@ const SUPABASE_KEY =
 const IS_SUPABASE =
   BASE_URL.includes('supabase.co') || Boolean(SUPABASE_KEY)
 
-if (!BASE_URL) {
+if (!import.meta.env.VITE_API_BASE_URL) {
   console.warn(
-    '[api] VITE_API_BASE_URL is not set. API requests will use relative paths.',
+    '[api] VITE_API_BASE_URL is not set. Defaulting to university API server: ' + BASE_URL,
   )
 }
 
@@ -48,6 +49,7 @@ apiClient.interceptors.request.use(
 
 // ---------------------------------------------------------------------------
 // Response interceptor — unwrap response and normalise errors
+// Ensures that `message` is ALWAYS a string, preventing React #31 child crash.
 // ---------------------------------------------------------------------------
 apiClient.interceptors.response.use(
   (response) => response.data,
@@ -57,12 +59,28 @@ apiClient.interceptors.response.use(
 
     if (error.response) {
       status = error.response.status
-      message =
-        error.response.data?.message ||
-        error.response.data?.msg ||
-        error.response.data?.error ||
-        error.response.data?.error_description ||
-        `Server error (${status})`
+      const data = error.response.data
+
+      if (typeof data === 'string') {
+        message = data
+      } else if (data && typeof data === 'object') {
+        if (typeof data.message === 'string') {
+          message = data.message
+        } else if (typeof data.msg === 'string') {
+          message = data.msg
+        } else if (typeof data.error === 'string') {
+          message = data.error
+        } else if (data.error && typeof data.error === 'object' && typeof data.error.message === 'string') {
+          // Vercel 404 sends { error: { code, message } }
+          message = data.error.message
+        } else if (typeof data.error_description === 'string') {
+          message = data.error_description
+        } else {
+          message = `Server error (${status})`
+        }
+      } else {
+        message = `Server error (${status})`
+      }
     } else if (error.request) {
       message =
         'Unable to reach the server. Check your connection and try again.'
@@ -70,10 +88,14 @@ apiClient.interceptors.response.use(
       message = error.message || message
     }
 
+    if (typeof message !== 'string') {
+      message = String(message)
+    }
+
     return Promise.reject({
       message,
       status,
-      code: error.response?.data?.code,
+      code: error.response?.data?.code || error.response?.data?.error?.code,
       raw: error.response?.data,
     })
   },

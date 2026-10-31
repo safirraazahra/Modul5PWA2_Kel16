@@ -29,10 +29,12 @@ export function useGuns(params = {}) {
         setGuns(response.data || [])
         setPagination(response.pagination || null)
       } else {
-        setError(response.message || 'Failed to fetch products.')
+        const msg = typeof response.message === 'string' ? response.message : 'Failed to fetch products.'
+        setError(msg)
       }
     } catch (err) {
-      setError(err.message || 'An error occurred while fetching products.')
+      const msg = typeof err === 'string' ? err : err?.message || 'An error occurred while fetching products.'
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg))
       setGuns([])
     } finally {
       setLoading(false)
@@ -72,10 +74,12 @@ export function useGunById(id) {
       if (response.success) {
         setGun(response.data)
       } else {
-        setError(response.message || 'Product not found.')
+        const msg = typeof response.message === 'string' ? response.message : 'Product not found.'
+        setError(msg)
       }
     } catch (err) {
-      setError(err.message || 'Failed to load product details.')
+      const msg = typeof err === 'string' ? err : err?.message || 'Failed to load product details.'
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg))
       setGun(null)
     } finally {
       setLoading(false)
